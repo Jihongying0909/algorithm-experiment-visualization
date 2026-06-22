@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="算法可视化实验项目导航页">
+  <title>算法可视化实验室</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #68738a;
+      --line: rgba(78, 92, 122, 0.16);
+      --panel: rgba(255, 255, 255, 0.82);
+      --accent: #5b5bd6;
+      --accent-light: #ececff;
+      --shadow: 0 22px 70px rgba(52, 62, 96, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(117, 105, 255, 0.17), transparent 32rem),
+        radial-gradient(circle at 90% 15%, rgba(45, 196, 181, 0.14), transparent 30rem),
+        #f6f7fb;
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 72px 0 48px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      padding: 8px 13px;
+      border: 1px solid rgba(91, 91, 214, 0.18);
+      border-radius: 999px;
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2dc4b5;
+      content: "";
+      box-shadow: 0 0 0 5px rgba(45, 196, 181, 0.13);
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(42px, 7vw, 76px);
+      line-height: 1.04;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      max-width: 660px;
+      margin: 24px 0 44px;
+      color: var(--muted);
+      font-size: clamp(17px, 2.2vw, 20px);
+      line-height: 1.8;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      position: relative;
+      min-height: 250px;
+      padding: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      color: inherit;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      text-decoration: none;
+      backdrop-filter: blur(18px);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .card::after {
+      position: absolute;
+      right: -50px;
+      bottom: -74px;
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      background: var(--glow, rgba(91, 91, 214, 0.14));
+      content: "";
+      filter: blur(4px);
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(91, 91, 214, 0.38);
+      box-shadow: 0 28px 80px rgba(52, 62, 96, 0.18);
+    }
+
+    .card:focus-visible {
+      outline: 3px solid rgba(91, 91, 214, 0.42);
+      outline-offset: 4px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .number {
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    .status {
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #147668;
+      background: #dcf7f1;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status.pending {
+      color: #8b5b14;
+      background: #fff1d3;
+    }
+
+    .card h2 {
+      max-width: 430px;
+      margin: 48px 0 12px;
+      font-size: clamp(24px, 3vw, 32px);
+      letter-spacing: -0.035em;
+    }
+
+    .card p {
+      max-width: 440px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .arrow {
+      position: absolute;
+      right: 26px;
+      bottom: 24px;
+      z-index: 1;
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--accent);
+      font-size: 20px;
+      transition: transform 180ms ease;
+    }
+
+    .card:hover .arrow { transform: translate(3px, -3px); }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 34px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    footer a { color: var(--accent); }
+
+    @media (max-width: 720px) {
+      .shell { padding-top: 48px; }
+      .grid { grid-template-columns: 1fr; }
+      .card { min-height: 230px; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card, .arrow { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">Algorithm Collection</div>
+    <h1>算法可视化<br>实验室</h1>
+    <p class="lead">集中浏览五个算法实验项目。选择一个主题，进入对应的交互式演示页面。</p>
+
+    <section class="grid" aria-label="算法演示项目">
+      <a class="card" href="https://jihongying0909.github.io/test2-demo/" style="--glow: rgba(91, 91, 214, 0.18)">
+        <div class="card-top"><span class="number">PROJECT 02</span><span class="status">可访问</span></div>
+        <h2>最近点对算法</h2>
+        <p>逐步枚举点对，联动展示代码执行与二维平面中的比较过程。</p>
+        <span class="arrow" aria-hidden="true">↗</span>
+      </a>
+
+      <a class="card" href="https://jihongying0909.github.io/test3-demo/" style="--glow: rgba(45, 196, 181, 0.18)">
+        <div class="card-top"><span class="number">PROJECT 03</span><span class="status">可访问</span></div>
+        <h2>五种搜索策略</h2>
+        <p>比较可行性剪枝、最优化剪枝、MRV + DH、冗余消除和 Tabucol。</p>
+        <span class="arrow" aria-hidden="true">↗</span>
+      </a>
+
+      <a class="card" href="https://jihongying0909.github.io/test4-demo/" style="--glow: rgba(245, 150, 94, 0.18)">
+        <div class="card-top"><span class="number">PROJECT 04</span><span class="status">可访问</span></div>
+        <h2>鸡蛋掉落问题</h2>
+        <p>通过交互式过程理解经典动态规划问题及其状态转移。</p>
+        <span class="arrow" aria-hidden="true">↗</span>
+      </a>
+
+      <a class="card" href="https://jihongying0909.github.io/test5-demo/" style="--glow: rgba(225, 29, 72, 0.13)">
+        <div class="card-top"><span class="number">PROJECT 05</span><span class="status">可访问</span></div>
+        <h2>无向图桥检测</h2>
+        <p>观察 DFS 搜索过程，区分树边、返祖边，并定位图中的桥。</p>
+        <span class="arrow" aria-hidden="true">↗</span>
+      </a>
+
+      <a class="card" href="https://github.com/Jihongying0909/test6-demo" style="--glow: rgba(245, 185, 73, 0.18)">
+        <div class="card-top"><span class="number">PROJECT 06</span><span class="status pending">待发布</span></div>
+        <h2>实验六</h2>
+        <p>仓库已建立，演示内容发布后可将入口切换到 GitHub Pages 地址。</p>
+        <span class="arrow" aria-hidden="true">↗</span>
+      </a>
+    </section>
+
+    <footer>
+      <span>© 2026 Jihongying · Algorithm Experiments</span>
+      <a href="https://github.com/Jihongying0909">在 GitHub 查看全部仓库</a>
+    </footer>
+  </main>
+</body>
+</html>
