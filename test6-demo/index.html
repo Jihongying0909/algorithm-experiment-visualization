@@ -1,0 +1,2087 @@
+<!doctype html>
+<!--
+使用方法：
+1. 双击本文件即可离线打开，无需服务器或网络。
+2. 顶部切换最大流算法和待判定球队。
+3. 使用“上一步 / 下一步 / 自动播放 / 重置”观察伪代码与流网络同步执行。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>棒球淘汰与最大流算法可视化</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fff8fb;
+      --panel: #ffffff;
+      --panel-2: #fff1f6;
+      --line: #f0cad9;
+      --text: #3f2531;
+      --muted: #856775;
+      --cyan: #ec4899;
+      --blue: #db2777;
+      --green: #16a34a;
+      --amber: #f472b6;
+      --orange: #f97316;
+      --red: #e11d48;
+      --purple: #a855f7;
+      --shadow: 0 14px 34px rgba(157, 62, 101, .12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+    body {
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(244, 114, 182, .18), transparent 32rem),
+        radial-gradient(circle at 95% 10%, rgba(236, 72, 153, .10), transparent 30rem),
+        var(--bg);
+    }
+
+    button, select, input, textarea { font: inherit; }
+    button, select { color: var(--text); }
+    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid rgba(236, 72, 153, .35);
+      outline-offset: 2px;
+    }
+
+    .app {
+      width: min(1920px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: clamp(14px, 2vw, 28px);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 16px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: var(--shadow);
+    }
+
+    .brand h1 { margin: 0; font-size: clamp(22px, 2.2vw, 34px); }
+    .brand p { margin: 5px 0 0; color: var(--muted); font-size: 15px; }
+    .top-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+    .field { display: flex; align-items: center; gap: 9px; }
+    .field label { color: var(--muted); font-weight: 700; }
+    select {
+      min-width: 210px;
+      padding: 10px 36px 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .tabs {
+      display: inline-flex;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff1f6;
+    }
+    .tab {
+      border: 0;
+      border-radius: 9px;
+      padding: 9px 14px;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    .tab.active {
+      color: white;
+      background: linear-gradient(135deg, #ec4899, #f472b6);
+    }
+
+    .parameter-panel {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .97);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .parameter-panel summary {
+      cursor: pointer;
+      padding: 13px 18px;
+      font-weight: 900;
+      color: #9d174d;
+      background: #fff1f6;
+      user-select: none;
+    }
+    .parameter-body { padding: 14px 18px 17px; }
+    .parameter-help { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    .parameter-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .team-card {
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffafd;
+    }
+    .team-card strong { display: block; margin-bottom: 8px; color: #9d174d; }
+    .team-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .team-card-header strong { margin: 0; }
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--red);
+      cursor: pointer;
+      font-weight: 900;
+    }
+    .input-row { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 6px; margin-top: 6px; }
+    .input-row label { color: var(--muted); font-size: 13px; }
+    .input-row input {
+      width: 100%;
+      min-width: 0;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      background: white;
+    }
+    .games-title { margin: 14px 0 8px; font-weight: 900; color: #9d174d; }
+    .games-grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; }
+    .game-input { display: flex; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; }
+    .game-input label { flex: 1; font-weight: 800; font-size: 13px; }
+    .game-input input { width: 58px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; }
+    .parameter-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 13px; align-items: center; }
+    .dataset-import {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: stretch;
+      margin-bottom: 14px;
+    }
+    .dataset-import textarea {
+      width: 100%;
+      min-height: 126px;
+      resize: vertical;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      background: white;
+      font: 13px/1.5 Consolas, "Microsoft YaHei", monospace;
+    }
+    .dataset-import-actions { display: flex; flex-direction: column; gap: 8px; }
+    .form-message { color: var(--muted); font-size: 14px; }
+    .form-message.error { color: var(--red); font-weight: 800; }
+
+    .workspace {
+      min-height: 620px;
+      display: grid;
+      grid-template-columns: minmax(390px, .78fr) minmax(620px, 1.55fr);
+      gap: 16px;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      min-height: 58px;
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff5f8;
+    }
+    .panel-header h2 { margin: 0; font-size: 18px; }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--muted);
+      background: white;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .code-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    .code-scroll {
+      overflow: auto;
+      padding: 10px 0 18px;
+      scroll-behavior: smooth;
+      background: #fff;
+    }
+    .code-line {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: start;
+      border-left: 4px solid transparent;
+      transition: background .2s, border-color .2s;
+    }
+    .code-line.active {
+      border-left-color: var(--amber);
+      background: linear-gradient(90deg, rgba(244, 114, 182, .24), rgba(244, 114, 182, .04));
+    }
+    .line-number {
+      padding: 7px 9px 7px 4px;
+      text-align: right;
+      color: #b08a9a;
+      user-select: none;
+      font: 14px/1.45 Consolas, monospace;
+    }
+    .line-code {
+      padding: 7px 14px 7px 8px;
+      white-space: pre-wrap;
+      color: #4f3541;
+      font: 15px/1.45 Consolas, "Microsoft YaHei", monospace;
+    }
+    .code-line.active .line-number { color: var(--amber); font-weight: 800; }
+    .code-line.active .line-code { color: #831843; }
+
+    .graph-panel {
+      display: grid;
+      grid-template-rows: auto minmax(560px, 1fr) auto;
+    }
+    .graph-wrap {
+      min-height: 560px;
+      overflow: hidden;
+      position: relative;
+      background:
+        linear-gradient(rgba(236, 72, 153, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(236, 72, 153, .07) 1px, transparent 1px),
+        #fffafd;
+      background-size: 32px 32px;
+    }
+    #graphSvg { width: 100%; height: 100%; display: block; }
+    .graph-options { display: flex; align-items: center; gap: 10px; }
+    .residual-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .residual-toggle input { width: 18px; height: 18px; accent-color: var(--cyan); }
+    .graph-footer {
+      min-height: 112px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(270px, .8fr);
+      gap: 12px;
+      padding: 13px 16px;
+      border-top: 1px solid var(--line);
+      background: #fff5f8;
+    }
+    .metrics { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+    .metric {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: white;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .metric strong { color: var(--text); }
+    .result-box {
+      min-height: 82px;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+    }
+    .result-box.pending { color: var(--muted); }
+    .result-box.safe { border-color: rgba(52, 211, 153, .55); background: rgba(52, 211, 153, .09); }
+    .result-box.eliminated { border-color: rgba(251, 113, 133, .6); background: rgba(251, 113, 133, .09); }
+    .result-title { font-size: 20px; font-weight: 900; margin-bottom: 5px; }
+    .result-detail { font-size: 14px; line-height: 1.55; }
+
+    .bottom {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: var(--shadow);
+    }
+    .controls {
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 18px;
+    }
+    .control-btn {
+      min-width: 104px;
+      padding: 10px 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff1f6;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .control-btn:hover:not(:disabled) { border-color: var(--cyan); transform: translateY(-1px); }
+    .control-btn.primary { color: white; border-color: transparent; background: var(--cyan); }
+    .control-btn:disabled { opacity: .42; cursor: not-allowed; }
+    .speed { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
+    .speed label { color: var(--muted); font-weight: 700; }
+    input[type="range"] { width: 150px; accent-color: var(--cyan); }
+    .progress { min-width: 110px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+    .note {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--line);
+      background: #fff5f8;
+      font-size: clamp(15px, 1.2vw, 19px);
+      line-height: 1.5;
+    }
+    .note-badge {
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      border-radius: 8px;
+      background: rgba(236, 72, 153, .13);
+      color: #be185d;
+      font-weight: 900;
+    }
+
+    .graph-element { transition: opacity .2s, filter .2s; }
+    .graph-element.dimmed { opacity: .25; }
+    .svg-edge { stroke: #806b74; stroke-width: 3.5; fill: none; transition: .22s; }
+    .svg-edge.saturated { stroke: var(--green); stroke-width: 5; }
+    .svg-edge.active { stroke: var(--cyan); stroke-width: 7; filter: url(#glow); opacity: 1; }
+    .svg-edge.cut-edge { stroke: #be185d; stroke-width: 7; opacity: 1; }
+    .svg-edge.level-blocked { opacity: .12; stroke-dasharray: 7 7; }
+    .svg-reverse { stroke: var(--purple); stroke-width: 4; stroke-dasharray: 8 6; opacity: .75; }
+    .svg-reverse.active { stroke-width: 7; opacity: 1; filter: url(#glow); }
+    .edge-label-bg { fill: white; stroke: #d9a9bc; stroke-width: 2; }
+    .edge-label-bg.reverse { fill: #faf5ff; stroke: #c084fc; }
+    .edge-label { fill: #4f2639; font-size: 17px; font-weight: 900; text-anchor: middle; }
+    .edge-label.reverse { fill: #7e22ce; font-size: 16px; }
+    .node-box { fill: #fff; stroke: #c895aa; stroke-width: 2.5; transition: .22s; }
+    .node.source .node-box, .node.sink .node-box { fill: #fce7f3; stroke: var(--cyan); }
+    .node.game .node-box { fill: #f5e8ff; stroke: #a855f7; }
+    .node.team .node-box { fill: #fff1f6; stroke: #ec4899; }
+    .node.active .node-box { stroke: var(--amber); stroke-width: 5; filter: url(#glow); }
+    .node.source-side .node-box { fill: #fce7f3; stroke: #be185d; stroke-width: 5; }
+    .node.sink-side .node-box { fill: #f3f4f6; stroke: #6b7280; stroke-width: 4; }
+    .node-text { fill: #4f2639; text-anchor: middle; font-weight: 900; font-size: 19px; }
+    .node-sub { fill: #8a5b70; text-anchor: middle; font-size: 14px; }
+    .level-badge { fill: var(--blue); stroke: #bfdbfe; stroke-width: 1.5; }
+    .level-text { fill: white; text-anchor: middle; dominant-baseline: middle; font-size: 12px; font-weight: 900; }
+    .arc-ring { fill: none; stroke: var(--purple); stroke-width: 4; stroke-dasharray: 7 4; }
+    .column-label { fill: #9b647b; font-size: 17px; font-weight: 900; text-anchor: middle; }
+    .parent-line { stroke: rgba(251, 191, 36, .55); stroke-width: 2; stroke-dasharray: 4 5; }
+    .cut-summary-bg { fill: white; stroke: #be185d; stroke-width: 2; }
+    .cut-summary { fill: #831843; font-size: 17px; font-weight: 900; }
+
+    @media (max-width: 1100px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .workspace { grid-template-columns: 1fr; }
+      .code-panel { min-height: 480px; }
+      .graph-panel { min-height: 650px; }
+      .parameter-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+      .games-grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .app { padding: 8px; }
+      .top-controls, .field { width: 100%; }
+      .field { align-items: flex-start; flex-direction: column; }
+      .tabs {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .tab { min-width: 0; padding-inline: 6px; }
+      select { width: 100%; min-width: 0; }
+      .panel-header { align-items: flex-start; flex-wrap: wrap; }
+      .line-code { overflow-wrap: anywhere; }
+      .graph-footer { grid-template-columns: 1fr; }
+      .speed { width: 100%; justify-content: center; }
+      .parameter-grid, .games-grid { grid-template-columns: 1fr; }
+      .dataset-import { grid-template-columns: 1fr; }
+      .dataset-import-actions { flex-direction: row; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>棒球淘汰 · 最大流动态演示</h1>
+        <p>自由数据输入｜三种最大流算法｜逐行残量网络动画</p>
+      </div>
+      <div class="top-controls">
+        <div class="field">
+          <label>最大流算法</label>
+          <div class="tabs" role="tablist" aria-label="最大流算法">
+            <button class="tab" data-algorithm="ff" role="tab" aria-selected="false">Ford–Fulkerson</button>
+            <button class="tab active" data-algorithm="ek" role="tab" aria-selected="true">Edmonds–Karp</button>
+            <button class="tab" data-algorithm="dinic" role="tab" aria-selected="false">Dinic</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="teamSelect">待判定球队</label>
+          <select id="teamSelect">
+            <option value="PHI" selected>Philadelphia（PHI）</option>
+            <option value="ATL">Atlanta（ATL）</option>
+            <option value="NY">New York（NY）</option>
+            <option value="MON">Montreal（MON）</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <details class="parameter-panel">
+      <summary>自由输入数据与随机示例</summary>
+      <div class="parameter-body">
+        <p class="parameter-help">可直接粘贴 Princeton teams*.txt 格式，也可在下方增删球队并编辑胜场、剩余场次和两两对阵。支持 2–5 支球队。</p>
+        <div class="dataset-import">
+          <textarea id="datasetText" aria-label="标准棒球数据文本" spellcheck="false"></textarea>
+          <div class="dataset-import-actions">
+            <button class="control-btn primary" id="importDatasetBtn">导入文本并运行</button>
+            <button class="control-btn" id="exportDatasetBtn">用当前数据填充</button>
+          </div>
+        </div>
+        <div class="parameter-grid" id="teamInputs"></div>
+        <div class="games-title">两两剩余比赛场次</div>
+        <div class="games-grid" id="gameInputs"></div>
+        <div class="parameter-actions">
+          <button class="control-btn primary" id="applyParamsBtn">应用参数并运行</button>
+          <button class="control-btn" id="addTeamBtn">添加球队</button>
+          <button class="control-btn" id="randomExampleBtn">随机生成示例并运行</button>
+          <button class="control-btn" id="restoreTeams4Btn">恢复 teams4</button>
+          <span class="form-message" id="formMessage">当前使用内置 teams4 数据。</span>
+        </div>
+      </div>
+    </details>
+
+    <section class="workspace">
+      <article class="panel code-panel">
+        <div class="panel-header">
+          <h2 id="codeTitle">Edmonds–Karp 伪代码</h2>
+          <span class="pill" id="linePill">当前行 1</span>
+        </div>
+        <div class="code-scroll" id="codeScroll" aria-label="算法伪代码"></div>
+      </article>
+
+      <article class="panel graph-panel">
+        <div class="panel-header">
+          <h2 id="graphTitle">判定 Philadelphia：W = 83</h2>
+          <div class="graph-options">
+            <label class="residual-toggle">
+              <input id="showResidualEdges" type="checkbox">
+              显示残量边
+            </label>
+            <span class="pill" id="modePill">准备建图</span>
+          </div>
+        </div>
+        <div class="graph-wrap">
+          <svg id="graphSvg" viewBox="0 0 1320 780" role="img" aria-label="最大流网络可视化"></svg>
+        </div>
+        <div class="graph-footer">
+          <div class="metrics" id="metrics"></div>
+          <div class="result-box pending" id="resultBox">
+            <div class="result-title">演示尚未结束</div>
+            <div class="result-detail">点击“下一步”，观察代码行与图状态同步变化。</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <footer class="bottom">
+      <div class="controls">
+        <button class="control-btn" id="prevBtn">上一步</button>
+        <button class="control-btn" id="nextBtn">下一步</button>
+        <button class="control-btn primary" id="playBtn">自动播放</button>
+        <button class="control-btn" id="resetBtn">重置</button>
+        <div class="speed">
+          <label for="speedRange">速度</label>
+          <span>慢</span>
+          <input id="speedRange" type="range" min="0" max="2" step="1" value="1">
+          <span>快</span>
+        </div>
+        <div class="progress" id="progress">1 / 1</div>
+      </div>
+      <div class="note" aria-live="polite">
+        <span class="note-badge">步骤说明</span>
+        <span id="stepNote">初始化演示。</span>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const DEFAULT_TEAM_DATA = Object.freeze({
+      ATL: Object.freeze({ id: "ATL", name: "Atlanta", wins: 83, remaining: 8 }),
+      PHI: Object.freeze({ id: "PHI", name: "Philadelphia", wins: 80, remaining: 3 }),
+      NY: Object.freeze({ id: "NY", name: "New York", wins: 78, remaining: 6 }),
+      MON: Object.freeze({ id: "MON", name: "Montreal", wins: 77, remaining: 3 })
+    });
+    const DEFAULT_TEAM_ORDER = Object.freeze(["ATL", "PHI", "NY", "MON"]);
+    const DEFAULT_GAMES = Object.freeze({
+      "ATL|PHI": 1,
+      "ATL|NY": 6,
+      "ATL|MON": 1,
+      "PHI|NY": 0,
+      "PHI|MON": 2,
+      "NY|MON": 0
+    });
+    let TEAM_DATA = structuredClone(DEFAULT_TEAM_DATA);
+    let GAMES = structuredClone(DEFAULT_GAMES);
+    let TEAM_ORDER = [...DEFAULT_TEAM_ORDER];
+    const INF = 1_000_000;
+
+    const EK_CODE = Object.freeze([
+      "判定球队 x，计算 W ← w[x] + r[x]",
+      "若存在 w[j] > W：返回“平凡淘汰”",
+      "构造流网络，total ← 所有 s→比赛节点容量之和",
+      "flow ← 0",
+      "while BFS(s, t) 能找到增广路径：",
+      "    取出队首顶点 u",
+      "    for 每条残量边 (u, v)：",
+      "        若 residual(u,v)>0 且 v 未访问：记录 parent[v]←u",
+      "        若 v=t：恢复整条增广路径",
+      "    bottleneck ← 路径上的最小残量",
+      "    for 路径中的每条边 (u,v)：",
+      "        更新正向与反向残量",
+      "    flow ← flow + bottleneck",
+      "BFS 无法到达 t，最大流计算结束",
+      "从 s 在最终残量图中 BFS，得到源侧可达集",
+      "比较 flow 与 total，并输出淘汰证书 R"
+    ]);
+
+    const FF_CODE = Object.freeze([
+      "判定球队 x，计算 W ← w[x] + r[x]",
+      "若存在 w[j] > W：返回“平凡淘汰”",
+      "构造流网络，total ← 所有 s→比赛节点容量之和",
+      "flow ← 0",
+      "while DFS(s, t) 能找到任意增广路径：",
+      "    访问顶点 u，并标记为已访问",
+      "    for 每条残量边 (u, v)：",
+      "        若 residual(u,v)>0 且 v 未访问：DFS 深入 v",
+      "        若到达 t：恢复当前增广路径",
+      "    bottleneck ← 路径上的最小残量",
+      "    for 路径中的每条边 (u,v)：",
+      "        更新正向与反向残量",
+      "    flow ← flow + bottleneck",
+      "DFS 无法到达 t，最大流计算结束",
+      "从 s 在最终残量图中搜索，得到源侧可达集",
+      "比较 flow 与 total，并输出淘汰证书 R"
+    ]);
+
+    const DINIC_CODE = Object.freeze([
+      "判定球队 x，计算 W ← w[x] + r[x]",
+      "若存在 w[j] > W：返回“平凡淘汰”",
+      "构造流网络，total ← 所有 s→比赛节点容量之和",
+      "flow ← 0，phase ← 0",
+      "while BFS_Level(s,t) 能建立到 t 的层次图：",
+      "    从队列取出顶点 u",
+      "    若 residual(u,v)>0 且 level[v]=-1：",
+      "        level[v] ← level[u]+1",
+      "    ptr[*] ← 0（重置当前弧）",
+      "    while pushed ← DFS_Blocking(s,∞) > 0：",
+      "        检查当前弧 (u,v)",
+      "        若 level[v]=level[u]+1：DFS 深入 v",
+      "        若到达 t：确定本路径可推送流量",
+      "        回溯并更新正向/反向残量",
+      "        若边不可用：ptr[u] ← ptr[u]+1",
+      "    phase 结束，重新 BFS 分层",
+      "s 无法分层到 t，最大流计算结束",
+      "最终残量图从 s 可达的球队节点组成证书 R",
+      "比较 flow 与 total，输出结论"
+    ]);
+
+    function pairKey(a, b) {
+      return TEAM_ORDER.indexOf(a) < TEAM_ORDER.indexOf(b) ? `${a}|${b}` : `${b}|${a}`;
+    }
+
+    function getGame(a, b) {
+      return GAMES[pairKey(a, b)] ?? 0;
+    }
+
+    function buildNetwork(targetId) {
+      const target = TEAM_DATA[targetId];
+      const maximumWins = target.wins + target.remaining;
+      const opponents = TEAM_ORDER.filter((id) => id !== targetId);
+      const trivialBy = opponents.filter((id) => TEAM_DATA[id].wins > maximumWins);
+      const nodes = [
+        { id: "s", type: "source", label: "源点 s", sub: "" },
+        ...opponents.map((id) => ({
+          id: `T_${id}`,
+          type: "team",
+          teamId: id,
+          label: id,
+          sub: `配额 ${maximumWins - TEAM_DATA[id].wins}`
+        })),
+        { id: "t", type: "sink", label: "汇点 t", sub: "" }
+      ];
+
+      const gamePairs = [];
+      for (let i = 0; i < opponents.length; i += 1) {
+        for (let j = i + 1; j < opponents.length; j += 1) {
+          const a = opponents[i];
+          const b = opponents[j];
+          const games = getGame(a, b);
+          if (games > 0) gamePairs.push({ a, b, games, id: `G_${a}_${b}` });
+        }
+      }
+      const gameNodes = gamePairs.map((pair) => ({
+        id: pair.id,
+        type: "game",
+        label: `${pair.a}–${pair.b}`,
+        sub: `${pair.games} 场`
+      }));
+      nodes.splice(1, 0, ...gameNodes);
+
+      const edges = [];
+      const addOriginalEdge = (from, to, capacity, kind) => {
+        edges.push({
+          id: `e${edges.length}`,
+          from,
+          to,
+          capacity,
+          flow: 0,
+          kind
+        });
+      };
+      gamePairs.forEach((pair) => {
+        addOriginalEdge("s", pair.id, pair.games, "source-game");
+        addOriginalEdge(pair.id, `T_${pair.a}`, INF, "game-team");
+        addOriginalEdge(pair.id, `T_${pair.b}`, INF, "game-team");
+      });
+      opponents.forEach((id) => {
+        addOriginalEdge(`T_${id}`, "t", maximumWins - TEAM_DATA[id].wins, "team-sink");
+      });
+
+      return {
+        targetId,
+        maximumWins,
+        opponents,
+        trivialBy,
+        nodes,
+        edges,
+        totalGames: gamePairs.reduce((sum, pair) => sum + pair.games, 0)
+      };
+    }
+
+    function createResidualGraph(network) {
+      const adjacency = Object.fromEntries(network.nodes.map((node) => [node.id, []]));
+      const originals = network.edges.map((edge) => ({ ...edge }));
+      originals.forEach((edge, originalIndex) => {
+        const forward = {
+          to: edge.to,
+          residual: edge.capacity,
+          reverseIndex: adjacency[edge.to].length,
+          originalIndex,
+          direction: 1
+        };
+        const reverse = {
+          to: edge.from,
+          residual: 0,
+          reverseIndex: adjacency[edge.from].length,
+          originalIndex,
+          direction: -1
+        };
+        adjacency[edge.from].push(forward);
+        adjacency[edge.to].push(reverse);
+      });
+      return { adjacency, originals };
+    }
+
+    function cloneRecord(record) {
+      return Object.fromEntries(Object.entries(record).map(([key, value]) => [
+        key,
+        Array.isArray(value) ? [...value] : value
+      ]));
+    }
+
+    function deriveEdgeSnapshots(residualGraph) {
+      return residualGraph.originals.map((edge, index) => {
+        const forward = residualGraph.adjacency[edge.from]
+          .find((item) => item.originalIndex === index && item.direction === 1);
+        return {
+          ...edge,
+          flow: edge.capacity - forward.residual,
+          residual: forward.residual
+        };
+      });
+    }
+
+    function getReverseResiduals(residualGraph) {
+      const result = [];
+      residualGraph.originals.forEach((edge, index) => {
+        const reverse = residualGraph.adjacency[edge.to]
+          .find((item) => item.originalIndex === index && item.direction === -1);
+        if (reverse.residual > 0) {
+          result.push({
+            id: `r${index}`,
+            from: edge.to,
+            to: edge.from,
+            residual: reverse.residual,
+            originalId: edge.id
+          });
+        }
+      });
+      return result;
+    }
+
+    function createStepCollector(network, residualGraph, algorithm) {
+      const steps = [];
+      const push = (line, note, visual = {}) => {
+        const graphState = {
+          nodes: network.nodes.map((node) => ({ ...node })),
+          edges: deriveEdgeSnapshots(residualGraph),
+          reverseEdges: getReverseResiduals(residualGraph),
+          activeNodes: [...(visual.activeNodes ?? [])],
+          activeEdges: [...(visual.activeEdges ?? [])],
+          activeReverseEdges: [...(visual.activeReverseEdges ?? [])],
+          parent: cloneRecord(visual.parent ?? {}),
+          levels: { ...(visual.levels ?? {}) },
+          currentArc: visual.currentArc ?? null,
+          sourceSide: [...(visual.sourceSide ?? [])],
+          mode: visual.mode ?? "准备",
+          flow: visual.flow ?? 0,
+          totalGames: network.totalGames,
+          bottleneck: visual.bottleneck ?? null,
+          augmentCount: visual.augmentCount ?? 0,
+          phaseCount: visual.phaseCount ?? 0,
+          result: visual.result ? { ...visual.result } : null,
+          levelGraph: Boolean(visual.levelGraph)
+        };
+        steps.push({ line, note, graphState, algorithm });
+      };
+      return { steps, push };
+    }
+
+    function makeResult(network, flow, sourceSide, augmentCount, phaseCount, algorithm) {
+      const eliminated = flow < network.totalGames;
+      const certificate = eliminated
+        ? network.opponents.filter((id) => sourceSide.includes(`T_${id}`))
+        : [];
+      return {
+        eliminated,
+        trivial: false,
+        flow,
+        totalGames: network.totalGames,
+        certificate,
+        augmentCount,
+        phaseCount,
+        algorithm
+      };
+    }
+
+    function addCommonOpening(network, collector) {
+      const { push } = collector;
+      const target = TEAM_DATA[network.targetId];
+      push(1, `目标球队 ${target.name}：W = ${target.wins} + ${target.remaining} = ${network.maximumWins}。`, {
+        activeNodes: [],
+        mode: "计算胜场上限"
+      });
+      if (network.trivialBy.length > 0) {
+        const witness = network.trivialBy[0];
+        const result = {
+          eliminated: true,
+          trivial: true,
+          flow: 0,
+          totalGames: network.totalGames,
+          certificate: [witness],
+          augmentCount: 0,
+          phaseCount: 0
+        };
+        push(2, `${TEAM_DATA[witness].name} 已有 ${TEAM_DATA[witness].wins} 胜，大于 W=${network.maximumWins}，因此平凡淘汰。`, {
+          activeNodes: [`T_${witness}`],
+          sourceSide: [`T_${witness}`],
+          result,
+          mode: "平凡淘汰"
+        });
+        return true;
+      }
+      push(2, `没有球队当前胜场超过 W=${network.maximumWins}，进入最大流判定。`, {
+        mode: "通过预筛"
+      });
+      push(3, `建图完成：其余球队之间共有 ${network.totalGames} 场比赛需要分配。`, {
+        mode: "构造流网络"
+      });
+      return false;
+    }
+
+    function findSourceSide(residualGraph, source) {
+      const visited = new Set([source]);
+      const queue = [source];
+      while (queue.length > 0) {
+        const u = queue.shift();
+        residualGraph.adjacency[u].forEach((edge) => {
+          if (edge.residual > 0 && !visited.has(edge.to)) {
+            visited.add(edge.to);
+            queue.push(edge.to);
+          }
+        });
+      }
+      return [...visited];
+    }
+
+    function residualEdgeId(residualGraph, from, edge) {
+      return residualGraph.originals[edge.originalIndex].id;
+    }
+
+    function residualEdgeFocus(edge, edgeId) {
+      return edge.direction === -1
+        ? { activeEdges: [], activeReverseEdges: [`r${edge.originalIndex}`] }
+        : { activeEdges: [edgeId], activeReverseEdges: [] };
+    }
+
+    function residualPathFocus(path) {
+      return {
+        activeEdges: path.filter((part) => part.direction === 1).map((part) => part.edgeId),
+        activeReverseEdges: path.filter((part) => part.direction === -1).map((part) => part.reverseId)
+      };
+    }
+
+    function applyResidualUpdate(residualGraph, from, edgeIndex, amount) {
+      const edge = residualGraph.adjacency[from][edgeIndex];
+      const reverse = residualGraph.adjacency[edge.to][edge.reverseIndex];
+      edge.residual -= amount;
+      reverse.residual += amount;
+    }
+
+    function generateEdmondsKarpSteps(targetId) {
+      const network = buildNetwork(targetId);
+      const residualGraph = createResidualGraph(network);
+      const collector = createStepCollector(network, residualGraph, "ek");
+      if (addCommonOpening(network, collector)) return { network, steps: collector.steps };
+
+      let flow = 0;
+      let augmentCount = 0;
+      collector.push(4, "最大流初始化为 0。", { flow, mode: "初始化最大流" });
+
+      while (true) {
+        const parent = {};
+        const visited = new Set(["s"]);
+        const queue = ["s"];
+        collector.push(5, `开始第 ${augmentCount + 1} 轮 BFS，寻找边数最少的增广路径。`, {
+          flow, augmentCount, activeNodes: ["s"], parent, mode: "BFS 搜索"
+        });
+        let found = false;
+
+        while (queue.length > 0 && !found) {
+          const u = queue.shift();
+          collector.push(6, `BFS 弹出 ${nodeDisplay(u)}，检查它的残量出边。`, {
+            flow, augmentCount, activeNodes: [u], parent, mode: "BFS 扩展"
+          });
+          for (let edgeIndex = 0; edgeIndex < residualGraph.adjacency[u].length; edgeIndex += 1) {
+            const edge = residualGraph.adjacency[u][edgeIndex];
+            const edgeId = residualEdgeId(residualGraph, u, edge);
+            collector.push(7, `检查 ${nodeDisplay(u)} → ${nodeDisplay(edge.to)}，剩余容量 ${formatCapacity(edge.residual)}。`, {
+              flow, augmentCount, activeNodes: [u, edge.to], ...residualEdgeFocus(edge, edgeId), parent, mode: "检查残量边"
+            });
+            if (edge.residual > 0 && !visited.has(edge.to)) {
+              visited.add(edge.to);
+              parent[edge.to] = { from: u, edgeIndex };
+              queue.push(edge.to);
+              collector.push(8, `首次到达 ${nodeDisplay(edge.to)}，记录 parent[${nodeDisplay(edge.to)}] = ${nodeDisplay(u)}。`, {
+                flow, augmentCount, activeNodes: [edge.to], ...residualEdgeFocus(edge, edgeId), parent, mode: "记录 parent"
+              });
+              if (edge.to === "t") {
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!found) {
+          collector.push(14, "BFS 无法到达汇点 t，不再存在增广路径。", {
+            flow, augmentCount, activeNodes: [...visited], parent, mode: "最大流结束"
+          });
+          break;
+        }
+
+        const path = [];
+        let cursor = "t";
+        while (cursor !== "s") {
+          const info = parent[cursor];
+          path.push({ from: info.from, edgeIndex: info.edgeIndex });
+          cursor = info.from;
+        }
+        path.reverse();
+        const pathForwardIds = path
+          .filter(({ from, edgeIndex }) => residualGraph.adjacency[from][edgeIndex].direction === 1)
+          .map(({ from, edgeIndex }) => residualEdgeId(residualGraph, from, residualGraph.adjacency[from][edgeIndex]));
+        const pathReverseIds = path
+          .filter(({ from, edgeIndex }) => residualGraph.adjacency[from][edgeIndex].direction === -1)
+          .map(({ from, edgeIndex }) => `r${residualGraph.adjacency[from][edgeIndex].originalIndex}`);
+        collector.push(9, `找到增广路径：${path.map(({ from }) => nodeDisplay(from)).concat("t").join(" → ")}。`, {
+          flow, augmentCount, activeEdges: pathForwardIds, activeReverseEdges: pathReverseIds, parent, mode: "找到增广路径"
+        });
+        const bottleneck = Math.min(...path.map(({ from, edgeIndex }) =>
+          residualGraph.adjacency[from][edgeIndex].residual
+        ));
+        collector.push(10, `路径瓶颈 = ${bottleneck}，本轮最多增加 ${bottleneck} 单位流。`, {
+          flow, augmentCount, activeEdges: pathForwardIds, activeReverseEdges: pathReverseIds, parent, bottleneck, mode: "计算瓶颈"
+        });
+
+        for (const pathPart of path) {
+          const edge = residualGraph.adjacency[pathPart.from][pathPart.edgeIndex];
+          const edgeId = residualEdgeId(residualGraph, pathPart.from, edge);
+          collector.push(11, `准备更新边 ${nodeDisplay(pathPart.from)} → ${nodeDisplay(edge.to)}。`, {
+            flow, augmentCount, ...residualEdgeFocus(edge, edgeId), parent, bottleneck, mode: "逐边增广"
+          });
+          applyResidualUpdate(residualGraph, pathPart.from, pathPart.edgeIndex, bottleneck);
+          collector.push(12, `该边正向残量减少 ${bottleneck}，反向残量增加 ${bottleneck}。`, {
+            flow, augmentCount, ...residualEdgeFocus(edge, edgeId), parent, bottleneck, mode: "更新残量"
+          });
+        }
+        flow += bottleneck;
+        augmentCount += 1;
+        collector.push(13, `最大流累加：flow = ${flow}。`, {
+          flow, augmentCount, activeEdges: pathForwardIds, activeReverseEdges: pathReverseIds, mode: "完成一轮增广"
+        });
+      }
+
+      const sourceSide = findSourceSide(residualGraph, "s");
+      collector.push(15, `最终残量图中，从 s 可达：${sourceSide.map(nodeDisplay).join("、")}。`, {
+        flow, augmentCount, sourceSide, activeNodes: sourceSide, mode: "提取最小割"
+      });
+      const result = makeResult(network, flow, sourceSide, augmentCount, 0, "ek");
+      collector.push(16, result.eliminated
+        ? `最大流 ${flow} < 总场数 ${network.totalGames}，被淘汰；证书 R={${result.certificate.join(", ")}}。`
+        : `最大流 ${flow} = 总场数 ${network.totalGames}，所有比赛均可安排，因此未被淘汰。`, {
+        flow, augmentCount, sourceSide, result, mode: "输出结论"
+      });
+      return { network, steps: collector.steps };
+    }
+
+    function generateFordFulkersonSteps(targetId) {
+      const network = buildNetwork(targetId);
+      const residualGraph = createResidualGraph(network);
+      const collector = createStepCollector(network, residualGraph, "ff");
+      if (addCommonOpening(network, collector)) return { network, steps: collector.steps };
+
+      let flow = 0;
+      let augmentCount = 0;
+      collector.push(4, "最大流初始化为 0。", { flow, mode: "初始化最大流" });
+
+      while (true) {
+        const visited = new Set();
+        const parent = {};
+        const path = [];
+        collector.push(5, `开始第 ${augmentCount + 1} 轮 DFS，寻找任意一条增广路径。`, {
+          flow, augmentCount, activeNodes: ["s"], parent, mode: "DFS 搜索"
+        });
+
+        const search = (u) => {
+          visited.add(u);
+          collector.push(6, `DFS 访问 ${nodeDisplay(u)}。`, {
+            flow, augmentCount, activeNodes: [u], parent, mode: "DFS 访问"
+          });
+          if (u === "t") return true;
+          for (let edgeIndex = 0; edgeIndex < residualGraph.adjacency[u].length; edgeIndex += 1) {
+            const edge = residualGraph.adjacency[u][edgeIndex];
+            const edgeId = residualEdgeId(residualGraph, u, edge);
+            collector.push(7, `检查 ${nodeDisplay(u)} → ${nodeDisplay(edge.to)}，剩余容量 ${formatCapacity(edge.residual)}。`, {
+              flow, augmentCount, activeNodes: [u, edge.to],
+              ...residualEdgeFocus(edge, edgeId), parent, mode: "检查残量边"
+            });
+            if (edge.residual <= 0 || visited.has(edge.to)) continue;
+            parent[edge.to] = { from: u, edgeIndex };
+            path.push({
+              from: u,
+              edgeIndex,
+              edgeId,
+              reverseId: `r${edge.originalIndex}`,
+              direction: edge.direction
+            });
+            collector.push(8, `边可用，DFS 深入 ${nodeDisplay(edge.to)}。`, {
+              flow, augmentCount, activeNodes: [u, edge.to],
+              ...residualPathFocus(path), parent, mode: "DFS 深入"
+            });
+            if (search(edge.to)) return true;
+            path.pop();
+          }
+          return false;
+        };
+
+        if (!search("s")) {
+          collector.push(14, "DFS 无法到达汇点 t，不再存在增广路径。", {
+            flow, augmentCount, activeNodes: [...visited], parent, mode: "最大流结束"
+          });
+          break;
+        }
+
+        collector.push(9, `找到增广路径：${path.map((part) => nodeDisplay(part.from)).concat("t").join(" → ")}。`, {
+          flow, augmentCount, ...residualPathFocus(path), parent, mode: "找到增广路径"
+        });
+        const bottleneck = Math.min(...path.map(({ from, edgeIndex }) =>
+          residualGraph.adjacency[from][edgeIndex].residual
+        ));
+        collector.push(10, `路径瓶颈 = ${bottleneck}。`, {
+          flow, augmentCount, ...residualPathFocus(path), parent, bottleneck, mode: "计算瓶颈"
+        });
+        path.forEach((part) => {
+          const edge = residualGraph.adjacency[part.from][part.edgeIndex];
+          collector.push(11, `更新 ${nodeDisplay(part.from)} → ${nodeDisplay(edge.to)} 的残量。`, {
+            flow, augmentCount, ...residualEdgeFocus(edge, part.edgeId),
+            parent, bottleneck, mode: "逐边增广"
+          });
+          applyResidualUpdate(residualGraph, part.from, part.edgeIndex, bottleneck);
+          collector.push(12, `正向残量减少 ${bottleneck}，反向残量增加 ${bottleneck}。`, {
+            flow, augmentCount, ...residualEdgeFocus(edge, part.edgeId),
+            parent, bottleneck, mode: "更新残量"
+          });
+        });
+        flow += bottleneck;
+        augmentCount += 1;
+        collector.push(13, `最大流累加：flow = ${flow}。`, {
+          flow, augmentCount, ...residualPathFocus(path), mode: "完成一轮增广"
+        });
+      }
+
+      const sourceSide = findSourceSide(residualGraph, "s");
+      collector.push(15, `最终残量图从 s 可达：${sourceSide.map(nodeDisplay).join("、")}。`, {
+        flow, augmentCount, sourceSide, activeNodes: sourceSide, mode: "提取最小割"
+      });
+      const result = makeResult(network, flow, sourceSide, augmentCount, 0, "ff");
+      collector.push(16, result.eliminated
+        ? `最大流 ${flow} < 总场数 ${network.totalGames}，被淘汰；证书 R={${result.certificate.join(", ")}}。`
+        : `最大流 ${flow} = 总场数 ${network.totalGames}，所有比赛均可安排，因此未被淘汰。`, {
+        flow, augmentCount, sourceSide, result, mode: "输出结论"
+      });
+      return { network, steps: collector.steps };
+    }
+
+    function generateDinicSteps(targetId) {
+      const network = buildNetwork(targetId);
+      const residualGraph = createResidualGraph(network);
+      const collector = createStepCollector(network, residualGraph, "dinic");
+      if (addCommonOpening(network, collector)) return { network, steps: collector.steps };
+
+      let flow = 0;
+      let phaseCount = 0;
+      let augmentCount = 0;
+      collector.push(4, "最大流与 phase 计数初始化为 0。", {
+        flow, phaseCount, mode: "初始化 Dinic"
+      });
+
+      while (true) {
+        const levels = Object.fromEntries(network.nodes.map((node) => [node.id, -1]));
+        levels.s = 0;
+        const queue = ["s"];
+        collector.push(5, `开始第 ${phaseCount + 1} 次 BFS 分层，level[s]=0。`, {
+          flow, phaseCount, levels, activeNodes: ["s"], levelGraph: true, mode: "BFS 分层"
+        });
+        while (queue.length > 0) {
+          const u = queue.shift();
+          collector.push(6, `分层 BFS 弹出 ${nodeDisplay(u)}。`, {
+            flow, phaseCount, levels, activeNodes: [u], levelGraph: true, mode: "BFS 分层"
+          });
+          for (let edgeIndex = 0; edgeIndex < residualGraph.adjacency[u].length; edgeIndex += 1) {
+            const edge = residualGraph.adjacency[u][edgeIndex];
+            if (edge.residual > 0 && levels[edge.to] === -1) {
+              const edgeId = residualEdgeId(residualGraph, u, edge);
+              collector.push(7, `边 ${nodeDisplay(u)} → ${nodeDisplay(edge.to)} 可用，且目标尚未分层。`, {
+                flow, phaseCount, levels, activeNodes: [u, edge.to], ...residualEdgeFocus(edge, edgeId), levelGraph: true, mode: "检查分层边"
+              });
+              levels[edge.to] = levels[u] + 1;
+              queue.push(edge.to);
+              collector.push(8, `设置 level[${nodeDisplay(edge.to)}] = ${levels[edge.to]}。`, {
+                flow, phaseCount, levels, activeNodes: [edge.to], ...residualEdgeFocus(edge, edgeId), levelGraph: true, mode: "标记 level"
+              });
+            }
+          }
+        }
+
+        if (levels.t === -1) {
+          collector.push(17, "汇点 t 未被分层，说明残量图中 s 已无法到达 t。", {
+            flow, phaseCount, levels, activeNodes: Object.keys(levels).filter((id) => levels[id] >= 0),
+            levelGraph: true, mode: "Dinic 结束"
+          });
+          break;
+        }
+
+        phaseCount += 1;
+        const pointers = Object.fromEntries(network.nodes.map((node) => [node.id, 0]));
+        collector.push(9, `第 ${phaseCount} 个 phase：重置所有当前弧指针 ptr。`, {
+          flow, phaseCount, levels, levelGraph: true, mode: "重置当前弧"
+        });
+
+        const sendFlow = (u, available, path) => {
+          if (u === "t") {
+            collector.push(13, `DFS 到达 t，本条路径可推送 ${formatCapacity(available)} 单位流。`, {
+              flow, phaseCount, augmentCount, levels, activeNodes: ["t"],
+              ...residualPathFocus(path), bottleneck: available,
+              levelGraph: true, mode: "到达汇点"
+            });
+            return available;
+          }
+          while (pointers[u] < residualGraph.adjacency[u].length) {
+            const edgeIndex = pointers[u];
+            const edge = residualGraph.adjacency[u][edgeIndex];
+            const edgeId = residualEdgeId(residualGraph, u, edge);
+            collector.push(11, `当前弧 ptr[${nodeDisplay(u)}]=${edgeIndex}，检查 ${nodeDisplay(u)} → ${nodeDisplay(edge.to)}。`, {
+              flow, phaseCount, augmentCount, levels, activeNodes: [u, edge.to],
+              ...residualEdgeFocus(edge, edgeId), currentArc: edgeId, levelGraph: true, mode: "检查当前弧"
+            });
+            if (edge.residual > 0 && levels[edge.to] === levels[u] + 1) {
+              collector.push(12, `该边满足 level+1，DFS 深入 ${nodeDisplay(edge.to)}。`, {
+                flow, phaseCount, augmentCount, levels, activeNodes: [u, edge.to],
+                ...residualPathFocus([
+                  ...path,
+                  { edgeId, reverseId: `r${edge.originalIndex}`, direction: edge.direction }
+                ]),
+                currentArc: edgeId, levelGraph: true, mode: "DFS 深入"
+              });
+              const nextAvailable = Math.min(available, edge.residual);
+              const pushed = sendFlow(edge.to, nextAvailable, [
+                ...path,
+                {
+                  from: u,
+                  edgeIndex,
+                  edgeId,
+                  reverseId: `r${edge.originalIndex}`,
+                  direction: edge.direction
+                }
+              ]);
+              if (pushed > 0) {
+                applyResidualUpdate(residualGraph, u, edgeIndex, pushed);
+                collector.push(14, `DFS 回溯：更新 ${nodeDisplay(u)} → ${nodeDisplay(edge.to)} 的正反向残量，推送 ${pushed}。`, {
+                  flow, phaseCount, augmentCount, levels, activeNodes: [u, edge.to],
+                  ...residualEdgeFocus(edge, edgeId), currentArc: edgeId, bottleneck: pushed,
+                  levelGraph: true, mode: "回溯更新"
+                });
+                return pushed;
+              }
+            }
+            pointers[u] += 1;
+            collector.push(15, `该弧无法继续推流，ptr[${nodeDisplay(u)}] 前移到 ${pointers[u]}。`, {
+              flow, phaseCount, augmentCount, levels, activeNodes: [u],
+              currentArc: edgeId, levelGraph: true, mode: "当前弧前移"
+            });
+          }
+          collector.push(12, `${nodeDisplay(u)} 已无可用层次边，DFS 回溯。`, {
+            flow, phaseCount, augmentCount, levels, activeNodes: [u],
+            ...residualPathFocus(path), levelGraph: true, mode: "DFS 回溯"
+          });
+          return 0;
+        };
+
+        while (true) {
+          collector.push(10, "从 s 开始一次 DFS，尝试在当前层次图中继续构造阻塞流。", {
+            flow, phaseCount, augmentCount, levels, activeNodes: ["s"], levelGraph: true, mode: "DFS 阻塞流"
+          });
+          const pushed = sendFlow("s", INF, []);
+          if (pushed === 0) break;
+          flow += pushed;
+          augmentCount += 1;
+          collector.push(10, `本次 DFS 推送 ${pushed}，当前最大流 flow=${flow}。`, {
+            flow, phaseCount, augmentCount, levels, bottleneck: pushed,
+            levelGraph: true, mode: "阻塞流增广"
+          });
+        }
+        collector.push(16, `第 ${phaseCount} 个 phase 的阻塞流完成，重新执行 BFS 分层。`, {
+          flow, phaseCount, augmentCount, levels, levelGraph: true, mode: "Phase 完成"
+        });
+      }
+
+      const sourceSide = findSourceSide(residualGraph, "s");
+      collector.push(18, `最终残量图从 s 可达：${sourceSide.map(nodeDisplay).join("、")}；其中球队节点组成证书。`, {
+        flow, phaseCount, augmentCount, sourceSide, activeNodes: sourceSide, mode: "提取证书"
+      });
+      const result = makeResult(network, flow, sourceSide, augmentCount, phaseCount, "dinic");
+      collector.push(19, result.eliminated
+        ? `最大流 ${flow} < 总场数 ${network.totalGames}，被淘汰；证书 R={${result.certificate.join(", ")}}。`
+        : `最大流 ${flow} = 总场数 ${network.totalGames}，未被淘汰。`, {
+        flow, phaseCount, augmentCount, sourceSide, result, mode: "输出结论"
+      });
+      return { network, steps: collector.steps };
+    }
+
+    function nodeDisplay(nodeId) {
+      if (nodeId === "s" || nodeId === "t") return nodeId;
+      if (nodeId.startsWith("T_")) return nodeId.slice(2);
+      if (nodeId.startsWith("G_")) return nodeId.slice(2).replaceAll("_", "–");
+      return nodeId;
+    }
+
+    function formatCapacity(value) {
+      return value >= INF ? "∞" : String(value);
+    }
+
+    function certificateInequality(certificate) {
+      if (certificate.length === 0) return "";
+      const wins = certificate.reduce((sum, id) => sum + TEAM_DATA[id].wins, 0);
+      let internalGames = 0;
+      for (let i = 0; i < certificate.length; i += 1) {
+        for (let j = i + 1; j < certificate.length; j += 1) {
+          internalGames += getGame(certificate[i], certificate[j]);
+        }
+      }
+      const average = (wins + internalGames) / certificate.length;
+      return `证书验证：(${certificate.map((id) => TEAM_DATA[id].wins).join(" + ")} + ${internalGames}) / ${certificate.length} = ${average.toFixed(1)}`;
+    }
+
+    const DOM = {
+      codeTitle: document.getElementById("codeTitle"),
+      codeScroll: document.getElementById("codeScroll"),
+      linePill: document.getElementById("linePill"),
+      graphTitle: document.getElementById("graphTitle"),
+      modePill: document.getElementById("modePill"),
+      graphSvg: document.getElementById("graphSvg"),
+      showResidualEdges: document.getElementById("showResidualEdges"),
+      metrics: document.getElementById("metrics"),
+      resultBox: document.getElementById("resultBox"),
+      teamSelect: document.getElementById("teamSelect"),
+      teamInputs: document.getElementById("teamInputs"),
+      gameInputs: document.getElementById("gameInputs"),
+      datasetText: document.getElementById("datasetText"),
+      importDatasetBtn: document.getElementById("importDatasetBtn"),
+      exportDatasetBtn: document.getElementById("exportDatasetBtn"),
+      applyParamsBtn: document.getElementById("applyParamsBtn"),
+      addTeamBtn: document.getElementById("addTeamBtn"),
+      randomExampleBtn: document.getElementById("randomExampleBtn"),
+      restoreTeams4Btn: document.getElementById("restoreTeams4Btn"),
+      formMessage: document.getElementById("formMessage"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      playBtn: document.getElementById("playBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      speedRange: document.getElementById("speedRange"),
+      progress: document.getElementById("progress"),
+      stepNote: document.getElementById("stepNote"),
+      tabs: [...document.querySelectorAll(".tab")]
+    };
+
+    const query = new URLSearchParams(window.location.search);
+    document.querySelector(".parameter-panel").open = query.get("editor") === "open";
+    const scenarioParts = (query.get("scenario") ?? "").split("-");
+    const requestedAlgorithm = scenarioParts[0] || query.get("algorithm");
+    const requestedTarget = scenarioParts[1] || query.get("team");
+    const requestedStep = scenarioParts[2] || query.get("step");
+    const initialAlgorithm = ["ff", "ek", "dinic"].includes(requestedAlgorithm)
+      ? requestedAlgorithm
+      : "ek";
+    const initialTarget = TEAM_ORDER.includes(requestedTarget)
+      ? requestedTarget
+      : "PHI";
+
+    let appState = {
+      algorithm: initialAlgorithm,
+      targetId: initialTarget,
+      steps: [],
+      network: null,
+      stepIndex: 0,
+      showResidualEdges: false,
+      timer: null
+    };
+
+    function replaceAppState(patch) {
+      appState = { ...appState, ...patch };
+    }
+
+    function rebuildDemo() {
+      stopAutoplay();
+      const generators = {
+        ff: generateFordFulkersonSteps,
+        ek: generateEdmondsKarpSteps,
+        dinic: generateDinicSteps
+      };
+      const generated = generators[appState.algorithm](appState.targetId);
+      replaceAppState({
+        steps: generated.steps,
+        network: generated.network,
+        stepIndex: 0
+      });
+      renderCode();
+      renderCurrentStep();
+      if (requestedStep === "end") goToStep(generated.steps.length - 1);
+    }
+
+    function renderCode() {
+      const codeByAlgorithm = { ff: FF_CODE, ek: EK_CODE, dinic: DINIC_CODE };
+      const titleByAlgorithm = {
+        ff: "Ford–Fulkerson 伪代码",
+        ek: "Edmonds–Karp 伪代码",
+        dinic: "Dinic 伪代码"
+      };
+      const lines = codeByAlgorithm[appState.algorithm];
+      DOM.codeTitle.textContent = titleByAlgorithm[appState.algorithm];
+      DOM.codeScroll.innerHTML = lines.map((line, index) => `
+        <div class="code-line" data-line="${index + 1}">
+          <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
+          <span class="line-code">${escapeHtml(line)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderCurrentStep() {
+      const step = appState.steps[appState.stepIndex];
+      if (!step) return;
+      document.querySelectorAll(".code-line").forEach((line) => {
+        line.classList.toggle("active", Number(line.dataset.line) === step.line);
+      });
+      const activeLine = document.querySelector(`.code-line[data-line="${step.line}"]`);
+      if (activeLine) {
+        const targetTop = activeLine.offsetTop
+          - (DOM.codeScroll.clientHeight - activeLine.offsetHeight) / 2;
+        DOM.codeScroll.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: "smooth"
+        });
+      }
+      DOM.linePill.textContent = `当前行 ${step.line}`;
+      DOM.progress.textContent = `${appState.stepIndex + 1} / ${appState.steps.length}`;
+      DOM.stepNote.textContent = step.note;
+      DOM.modePill.textContent = step.graphState.mode;
+      const target = TEAM_DATA[appState.targetId];
+      DOM.graphTitle.textContent = `判定 ${target.name}：W = ${appState.network.maximumWins}`;
+      renderGraph(step.graphState);
+      renderMetrics(step.graphState);
+      renderResult(step.graphState.result);
+      DOM.prevBtn.disabled = appState.stepIndex === 0;
+      DOM.nextBtn.disabled = appState.stepIndex === appState.steps.length - 1;
+      if (DOM.nextBtn.disabled) stopAutoplay();
+    }
+
+    function getNodePositions(nodes) {
+      const games = nodes.filter((node) => node.type === "game");
+      const teams = nodes.filter((node) => node.type === "team");
+      const distribute = (items, x) => Object.fromEntries(items.map((item, index) => [
+        item.id,
+        { x, y: 120 + (index + 1) * (560 / (items.length + 1)) }
+      ]));
+      return {
+        s: { x: 105, y: 410 },
+        ...distribute(games, 410),
+        ...distribute(teams, 930),
+        t: { x: 1220, y: 410 }
+      };
+    }
+
+    function renderGraph(state) {
+      const positions = getNodePositions(state.nodes);
+      const activeEdges = new Set(state.activeEdges);
+      const activeReverseEdges = new Set(state.activeReverseEdges);
+      const activeNodes = new Set(state.activeNodes);
+      const sourceSide = new Set(state.sourceSide);
+      const levels = state.levels;
+      const cutEdges = getCutEdges(state);
+      const cutEdgeIds = new Set(cutEdges.map((edge) => edge.id));
+      const showCut = Boolean(state.result?.eliminated && !state.result.trivial);
+      const focusedNodeIds = new Set(activeNodes);
+      state.edges.forEach((edge) => {
+        if (activeEdges.has(edge.id) || (showCut && cutEdgeIds.has(edge.id))) {
+          focusedNodeIds.add(edge.from);
+          focusedNodeIds.add(edge.to);
+        }
+      });
+      state.reverseEdges.forEach((edge) => {
+        if (activeReverseEdges.has(edge.id)) {
+          focusedNodeIds.add(edge.from);
+          focusedNodeIds.add(edge.to);
+        }
+      });
+      const hasFocus = focusedNodeIds.size > 0
+        || activeEdges.size > 0
+        || activeReverseEdges.size > 0;
+      const defs = `
+        <defs>
+          <marker id="arrow" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#806b74"></path>
+          </marker>
+          <marker id="arrowActive" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="13" markerHeight="13" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ec4899"></path>
+          </marker>
+          <marker id="arrowReverse" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#a855f7"></path>
+          </marker>
+          <marker id="arrowCut" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="13" markerHeight="13" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#be185d"></path>
+          </marker>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+        </defs>
+      `;
+      const labels = `
+        <text class="column-label" x="105" y="52">源点</text>
+        <text class="column-label" x="410" y="52">比赛节点</text>
+        <text class="column-label" x="930" y="52">球队节点</text>
+        <text class="column-label" x="1220" y="52">汇点</text>
+      `;
+      const parentLines = Object.entries(state.parent).map(([child, info]) => {
+        const from = positions[info.from];
+        const to = positions[child];
+        if (!from || !to) return "";
+        const isFocused = focusedNodeIds.has(child) || focusedNodeIds.has(info.from);
+        return `<line class="parent-line graph-element ${hasFocus && !isFocused ? "dimmed" : ""}" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}"></line>`;
+      }).join("");
+      const edgeMarkup = state.edges.map((edge) => {
+        const from = positions[edge.from];
+        const to = positions[edge.to];
+        const geometry = edgeGeometry(from, to, 75, edge.kind, edge.id);
+        const isActive = activeEdges.has(edge.id);
+        const isCut = showCut && cutEdgeIds.has(edge.id);
+        const saturated = edge.capacity < INF && edge.flow === edge.capacity;
+        const levelAllowed = !state.levelGraph
+          || levels[edge.from] < 0
+          || levels[edge.to] < 0
+          || levels[edge.to] === levels[edge.from] + 1;
+        const classes = [
+          "svg-edge",
+          "graph-element",
+          saturated ? "saturated" : "",
+          isActive ? "active" : "",
+          isCut ? "cut-edge" : "",
+          hasFocus && !isActive && !isCut ? "dimmed" : "",
+          !levelAllowed ? "level-blocked" : ""
+        ].filter(Boolean).join(" ");
+        const label = edge.capacity >= INF
+          ? (edge.flow > 0 ? String(edge.flow) : "")
+          : `${edge.flow}/${edge.capacity}`;
+        const labelWidth = Math.max(42, label.length * 11 + 18);
+        const labelMarkup = label ? `
+          <g class="graph-element ${hasFocus && !isActive && !isCut ? "dimmed" : ""}" transform="translate(${geometry.labelX},${geometry.labelY})">
+            <rect class="edge-label-bg" x="${-labelWidth / 2}" y="-15" width="${labelWidth}" height="30" rx="8"></rect>
+            <text class="edge-label" y="6">${label}</text>
+          </g>
+        ` : "";
+        return `
+          <path class="${classes}" d="${geometry.path}" marker-end="url(#${isCut ? "arrowCut" : isActive ? "arrowActive" : "arrow"})"></path>
+          ${labelMarkup}
+        `;
+      }).join("");
+      const reverseMarkup = state.reverseEdges
+        .filter((edge) => appState.showResidualEdges || activeReverseEdges.has(edge.id))
+        .map((edge) => {
+        const from = positions[edge.from];
+        const to = positions[edge.to];
+        const original = state.edges.find((item) => item.id === edge.originalId);
+        const geometry = edgeGeometry(from, to, 72, original?.kind, edge.id, true);
+        const isActive = activeReverseEdges.has(edge.id);
+        const dimmed = hasFocus && !isActive;
+        const labelWidth = String(edge.residual).length * 11 + 42;
+        return `
+          <path class="svg-reverse graph-element ${isActive ? "active" : ""} ${dimmed ? "dimmed" : ""}" d="${geometry.path}" marker-end="url(#arrowReverse)"></path>
+          <g class="graph-element ${dimmed ? "dimmed" : ""}" transform="translate(${geometry.labelX},${geometry.labelY})">
+            <rect class="edge-label-bg reverse" x="${-labelWidth / 2}" y="-14" width="${labelWidth}" height="28" rx="8"></rect>
+            <text class="edge-label reverse" y="6">残量 ${edge.residual}</text>
+          </g>
+        `;
+      }).join("");
+      const nodeMarkup = state.nodes.map((node) => {
+        const position = positions[node.id];
+        const isFocused = focusedNodeIds.has(node.id) || (showCut && sourceSide.has(node.id));
+        const classes = [
+          "node",
+          "graph-element",
+          node.type,
+          activeNodes.has(node.id) ? "active" : "",
+          showCut && sourceSide.has(node.id) ? "source-side" : "",
+          showCut && !sourceSide.has(node.id) ? "sink-side" : "",
+          hasFocus && !isFocused && !showCut ? "dimmed" : ""
+        ].filter(Boolean).join(" ");
+        const width = node.type === "game" ? 174 : 150;
+        const level = levels[node.id];
+        return `
+          <g class="${classes}" transform="translate(${position.x},${position.y})">
+            ${state.currentArc && state.edges.find((edge) => edge.id === state.currentArc)?.from === node.id
+              ? `<circle class="arc-ring" r="57"></circle>` : ""}
+            <rect class="node-box" x="${-width / 2}" y="-43" width="${width}" height="86" rx="16"></rect>
+            <text class="node-text" y="-7">${escapeHtml(node.label)}</text>
+            <text class="node-sub" y="20">${escapeHtml(node.sub)}</text>
+            ${Number.isInteger(level) && level >= 0 ? `
+              <circle class="level-badge" cx="${width / 2 - 4}" cy="-34" r="15"></circle>
+              <text class="level-text" x="${width / 2 - 4}" y="-34">${level}</text>
+            ` : ""}
+          </g>
+        `;
+      }).join("");
+      const cutCapacity = cutEdges.reduce((sum, edge) => sum + edge.capacity, 0);
+      const cutExpression = cutEdges.map((edge) => edge.capacity).join(" + ");
+      const cutMarkup = showCut
+        ? `<g transform="translate(660,728)">
+             <rect class="cut-summary-bg" x="-270" y="-28" width="540" height="56" rx="12"></rect>
+             <text class="cut-summary" text-anchor="middle" y="7">源侧（粉）/ 汇侧（灰）　割容量：${cutExpression} = ${cutCapacity}　证书 R={${state.result.certificate.join(", ")}}</text>
+           </g>`
+        : "";
+      DOM.graphSvg.innerHTML = `${defs}${labels}${parentLines}${edgeMarkup}${reverseMarkup}${cutMarkup}${nodeMarkup}`;
+    }
+
+    function getCutEdges(state) {
+      if (!state.result?.eliminated || state.result.trivial) return [];
+      const sourceSide = new Set(state.sourceSide);
+      return state.edges.filter((edge) =>
+        sourceSide.has(edge.from) && !sourceSide.has(edge.to)
+      );
+    }
+
+    function edgeGeometry(from, to, nodeRadius, kind, edgeId, reverse = false) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const ux = dx / length;
+      const uy = dy / length;
+      const startX = from.x + ux * nodeRadius;
+      const startY = from.y + uy * nodeRadius;
+      const endX = to.x - ux * nodeRadius;
+      const endY = to.y - uy * nodeRadius;
+      const curveDirection = Number(edgeId.replace(/\D/g, "") || 0) % 2 === 0 ? 1 : -1;
+      const curve = kind === "game-team"
+        ? 34 * curveDirection * (reverse ? -1 : 1)
+        : reverse ? 22 * curveDirection : 0;
+      const controlX = (startX + endX) / 2 - uy * curve;
+      const controlY = (startY + endY) / 2 + ux * curve;
+      const labelX = (startX + 2 * controlX + endX) / 4;
+      const labelY = (startY + 2 * controlY + endY) / 4;
+      return {
+        path: curve === 0
+          ? `M ${startX} ${startY} L ${endX} ${endY}`
+          : `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`,
+        labelX,
+        labelY
+      };
+    }
+
+    function renderMetrics(state) {
+      const entries = [
+        ["最大流", state.flow],
+        ["需分配总场数", state.totalGames],
+        ["瓶颈", state.bottleneck ?? "—"],
+        ["增广次数", state.augmentCount]
+      ];
+      if (appState.algorithm === "dinic") entries.push(["phase 数", state.phaseCount]);
+      DOM.metrics.innerHTML = entries.map(([label, value]) =>
+        `<span class="metric">${label}：<strong>${value}</strong></span>`
+      ).join("");
+    }
+
+    function renderResult(result) {
+      if (!result) {
+        DOM.resultBox.className = "result-box pending";
+        DOM.resultBox.innerHTML = `
+          <div class="result-title">演示进行中</div>
+          <div class="result-detail">当前图是该代码行执行后的完整状态快照。</div>
+        `;
+        return;
+      }
+      const target = TEAM_DATA[appState.targetId];
+      if (!result.eliminated) {
+        DOM.resultBox.className = "result-box safe";
+        DOM.resultBox.innerHTML = `
+          <div class="result-title">结论：未被淘汰</div>
+          <div class="result-detail">最大流 ${result.flow} = 总场数 ${result.totalGames}，所有剩余比赛均能合法分配。</div>
+        `;
+        return;
+      }
+      const certificate = result.certificate.join(", ");
+      const inequality = result.trivial
+        ? `${TEAM_DATA[result.certificate[0]].wins} > ${appState.network.maximumWins}`
+        : `${certificateInequality(result.certificate)} > W=${appState.network.maximumWins}`;
+      DOM.resultBox.className = "result-box eliminated";
+      DOM.resultBox.innerHTML = `
+        <div class="result-title">结论：${target.name} 被淘汰</div>
+        <div class="result-detail">
+          ${result.trivial ? "平凡淘汰" : `最大流 ${result.flow} < 总场数 ${result.totalGames}`}；
+          证书 R={${certificate}}。<br>${inequality}
+        </div>
+      `;
+    }
+
+    function goToStep(nextIndex) {
+      const bounded = Math.max(0, Math.min(nextIndex, appState.steps.length - 1));
+      replaceAppState({ stepIndex: bounded });
+      renderCurrentStep();
+    }
+
+    function startAutoplay() {
+      if (appState.timer || appState.stepIndex >= appState.steps.length - 1) return;
+      DOM.playBtn.textContent = "暂停";
+      const delays = [1500, 800, 350];
+      const timer = window.setInterval(() => {
+        if (appState.stepIndex >= appState.steps.length - 1) {
+          stopAutoplay();
+          return;
+        }
+        goToStep(appState.stepIndex + 1);
+      }, delays[Number(DOM.speedRange.value)]);
+      replaceAppState({ timer });
+    }
+
+    function stopAutoplay() {
+      if (appState.timer) window.clearInterval(appState.timer);
+      replaceAppState({ timer: null });
+      DOM.playBtn.textContent = "自动播放";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function getGamePairs(order = TEAM_ORDER) {
+      const pairs = [];
+      for (let first = 0; first < order.length; first += 1) {
+        for (let second = first + 1; second < order.length; second += 1) {
+          pairs.push([order[first], order[second]]);
+        }
+      }
+      return pairs;
+    }
+
+    function refreshTeamSelect() {
+      DOM.teamSelect.innerHTML = TEAM_ORDER.map((id) =>
+        `<option value="${id}">${escapeHtml(TEAM_DATA[id].name)}（${id}）</option>`
+      ).join("");
+      DOM.teamSelect.value = appState.targetId;
+    }
+
+    function renderParameterInputs() {
+      DOM.teamInputs.innerHTML = TEAM_ORDER.map((id) => {
+        const team = TEAM_DATA[id];
+        return `
+          <div class="team-card">
+            <div class="team-card-header">
+              <strong>${id}</strong>
+              <button class="icon-btn" data-remove-team="${id}" title="删除 ${id}" aria-label="删除 ${id}">×</button>
+            </div>
+            <div class="input-row"><label for="name-${id}">名称</label><input id="name-${id}" data-team="${id}" data-field="name" value="${escapeHtml(team.name)}"></div>
+            <div class="input-row"><label for="wins-${id}">胜场</label><input id="wins-${id}" data-team="${id}" data-field="wins" type="number" min="0" step="1" value="${team.wins}"></div>
+            <div class="input-row"><label for="remaining-${id}">剩余</label><input id="remaining-${id}" data-team="${id}" data-field="remaining" type="number" min="0" step="1" value="${team.remaining}"></div>
+          </div>
+        `;
+      }).join("");
+      DOM.gameInputs.innerHTML = getGamePairs().map(([a, b]) => {
+        const key = pairKey(a, b);
+        return `
+          <div class="game-input">
+            <label for="game-${a}-${b}">${a}–${b}</label>
+            <input id="game-${a}-${b}" data-game="${key}" type="number" min="0" step="1" value="${GAMES[key]}">
+          </div>
+        `;
+      }).join("");
+      DOM.teamInputs.querySelectorAll("[data-remove-team]").forEach((button) => {
+        button.disabled = TEAM_ORDER.length <= 2;
+        button.addEventListener("click", () => removeTeam(button.dataset.removeTeam));
+      });
+    }
+
+    function readNonNegativeInteger(input, label) {
+      const value = Number(input.value);
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error(`${label} 必须是非负整数。`);
+      }
+      return value;
+    }
+
+    function readParametersFromForm() {
+      const nextTeams = {};
+      TEAM_ORDER.forEach((id) => {
+        const name = document.getElementById(`name-${id}`).value.trim();
+        if (!name) throw new Error(`${id} 的球队名称不能为空。`);
+        nextTeams[id] = {
+          id,
+          name,
+          wins: readNonNegativeInteger(document.getElementById(`wins-${id}`), `${id} 胜场`),
+          remaining: readNonNegativeInteger(document.getElementById(`remaining-${id}`), `${id} 剩余场次`)
+        };
+      });
+      const nextGames = {};
+      getGamePairs().forEach(([a, b]) => {
+        const key = pairKey(a, b);
+        nextGames[key] = readNonNegativeInteger(
+          document.getElementById(`game-${a}-${b}`),
+          `${a}–${b} 场次`
+        );
+      });
+      TEAM_ORDER.forEach((id) => {
+        const scheduled = TEAM_ORDER
+          .filter((other) => other !== id)
+          .reduce((sum, other) => sum + nextGames[pairKey(id, other)], 0);
+        if (nextTeams[id].remaining !== scheduled) {
+          throw new Error(`${id} 的剩余场次应为对阵场次之和 ${scheduled}。`);
+        }
+      });
+      return { order: [...TEAM_ORDER], teams: nextTeams, games: nextGames };
+    }
+
+    function applyDataset(dataset, message) {
+      TEAM_ORDER = [...dataset.order];
+      TEAM_DATA = structuredClone(dataset.teams);
+      GAMES = structuredClone(dataset.games);
+      if (!TEAM_ORDER.includes(appState.targetId)) {
+        replaceAppState({ targetId: TEAM_ORDER[0] });
+      }
+      refreshTeamSelect();
+      renderParameterInputs();
+      DOM.datasetText.value = formatDatasetText();
+      DOM.formMessage.className = "form-message";
+      DOM.formMessage.textContent = message;
+      rebuildDemo();
+    }
+
+    function makeTeamId(name, usedIds) {
+      const base = name
+        .normalize("NFKD")
+        .replace(/[^\w]/g, "")
+        .slice(0, 8)
+        .toUpperCase() || `T${usedIds.size + 1}`;
+      let id = base;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${base.slice(0, 6)}${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(id);
+      return id;
+    }
+
+    function parseDatasetText(text) {
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (lines.length === 0) throw new Error("请输入数据。");
+      const count = Number(lines[0]);
+      if (!Number.isInteger(count) || count < 2 || count > 5) {
+        throw new Error("球队数量必须是 2–5 的整数。");
+      }
+      if (lines.length !== count + 1) {
+        throw new Error(`应有 ${count} 行球队数据，当前为 ${lines.length - 1} 行。`);
+      }
+
+      const rows = lines.slice(1).map((line, rowIndex) => {
+        const parts = line.split(/\s+/);
+        if (parts.length !== count + 4) {
+          throw new Error(`第 ${rowIndex + 1} 支球队应包含名称、胜/负/剩余和 ${count} 个对阵数。`);
+        }
+        const numbers = parts.slice(1).map(Number);
+        if (numbers.some((value) => !Number.isInteger(value) || value < 0)) {
+          throw new Error(`第 ${rowIndex + 1} 支球队包含非法数字。`);
+        }
+        return {
+          name: parts[0],
+          wins: numbers[0],
+          losses: numbers[1],
+          remaining: numbers[2],
+          schedule: numbers.slice(3)
+        };
+      });
+
+      rows.forEach((row, first) => {
+        if (row.schedule[first] !== 0) throw new Error(`${row.name} 的对角线场次必须为 0。`);
+        const scheduled = row.schedule.reduce((sum, value) => sum + value, 0);
+        if (scheduled !== row.remaining) {
+          throw new Error(`${row.name} 的剩余场次应为对阵场次之和 ${scheduled}。`);
+        }
+        rows.forEach((other, second) => {
+          if (row.schedule[second] !== other.schedule[first]) {
+            throw new Error(`${row.name} 与 ${other.name} 的对阵矩阵不对称。`);
+          }
+        });
+      });
+
+      const usedIds = new Set();
+      const order = rows.map((row) => makeTeamId(row.name, usedIds));
+      const teams = Object.fromEntries(rows.map((row, index) => [
+        order[index],
+        { id: order[index], name: row.name, wins: row.wins, remaining: row.remaining }
+      ]));
+      const games = {};
+      getGamePairs(order).forEach(([a, b]) => {
+        games[`${a}|${b}`] = rows[order.indexOf(a)].schedule[order.indexOf(b)];
+      });
+      return { order, teams, games };
+    }
+
+    function formatDatasetText() {
+      const lines = [String(TEAM_ORDER.length)];
+      TEAM_ORDER.forEach((id) => {
+        const team = TEAM_DATA[id];
+        const schedule = TEAM_ORDER.map((other) => other === id ? 0 : getGame(id, other));
+        lines.push(`${team.name.replace(/\s+/g, "_")} ${team.wins} 0 ${team.remaining} ${schedule.join(" ")}`);
+      });
+      return lines.join("\n");
+    }
+
+    function addTeam() {
+      if (TEAM_ORDER.length >= 5) {
+        DOM.formMessage.className = "form-message error";
+        DOM.formMessage.textContent = "当前画布最多支持 5 支球队。";
+        return;
+      }
+      const usedIds = new Set(TEAM_ORDER);
+      const id = makeTeamId(`T${TEAM_ORDER.length + 1}`, usedIds);
+      const order = [...TEAM_ORDER, id];
+      const teams = {
+        ...structuredClone(TEAM_DATA),
+        [id]: { id, name: `球队${TEAM_ORDER.length + 1}`, wins: 0, remaining: 0 }
+      };
+      const games = { ...structuredClone(GAMES) };
+      TEAM_ORDER.forEach((other) => {
+        const key = order.indexOf(other) < order.indexOf(id) ? `${other}|${id}` : `${id}|${other}`;
+        games[key] = 0;
+      });
+      applyDataset({ order, teams, games }, `已添加 ${id}，请编辑数据后应用。`);
+    }
+
+    function removeTeam(id) {
+      if (TEAM_ORDER.length <= 2) return;
+      const order = TEAM_ORDER.filter((teamId) => teamId !== id);
+      const teams = Object.fromEntries(order.map((teamId) => [teamId, structuredClone(TEAM_DATA[teamId])]));
+      const games = {};
+      getGamePairs(order).forEach(([a, b]) => {
+        games[`${a}|${b}`] = getGame(a, b);
+      });
+      order.forEach((teamId) => {
+        teams[teamId].remaining = order
+          .filter((other) => other !== teamId)
+          .reduce((sum, other) => sum + games[
+            order.indexOf(teamId) < order.indexOf(other) ? `${teamId}|${other}` : `${other}|${teamId}`
+          ], 0);
+      });
+      applyDataset({ order, teams, games }, `已删除 ${id}。`);
+    }
+
+    function randomInteger(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateRandomDataset() {
+      const games = {};
+      getGamePairs().forEach(([a, b]) => {
+        games[pairKey(a, b)] = randomInteger(0, 4);
+      });
+      if (Object.values(games).every((value) => value === 0)) {
+        const [firstPair] = getGamePairs();
+        games[pairKey(...firstPair)] = 3;
+      }
+      const teams = Object.fromEntries(TEAM_ORDER.map((id, index) => {
+        const remaining = TEAM_ORDER
+          .filter((other) => other !== id)
+          .reduce((sum, other) => sum + games[pairKey(id, other)], 0);
+        return [id, {
+          id,
+          name: ["北辰队", "海棠队", "远山队", "星河队"][index] ?? `随机队${index + 1}`,
+          wins: randomInteger(68, 88),
+          remaining
+        }];
+      }));
+      return { order: [...TEAM_ORDER], teams, games };
+    }
+
+    DOM.prevBtn.addEventListener("click", () => goToStep(appState.stepIndex - 1));
+    DOM.nextBtn.addEventListener("click", () => goToStep(appState.stepIndex + 1));
+    DOM.resetBtn.addEventListener("click", rebuildDemo);
+    DOM.playBtn.addEventListener("click", () => appState.timer ? stopAutoplay() : startAutoplay());
+    DOM.speedRange.addEventListener("input", () => {
+      if (appState.timer) {
+        stopAutoplay();
+        startAutoplay();
+      }
+    });
+    DOM.showResidualEdges.addEventListener("change", (event) => {
+      replaceAppState({ showResidualEdges: event.target.checked });
+      renderCurrentStep();
+    });
+    DOM.teamSelect.addEventListener("change", (event) => {
+      replaceAppState({ targetId: event.target.value });
+      rebuildDemo();
+    });
+    DOM.applyParamsBtn.addEventListener("click", () => {
+      try {
+        applyDataset(readParametersFromForm(), "自定义参数已应用，演示已重新运行。");
+      } catch (error) {
+        DOM.formMessage.className = "form-message error";
+        DOM.formMessage.textContent = error.message;
+      }
+    });
+    DOM.importDatasetBtn.addEventListener("click", () => {
+      try {
+        applyDataset(parseDatasetText(DOM.datasetText.value), "文本数据已导入并运行。");
+      } catch (error) {
+        DOM.formMessage.className = "form-message error";
+        DOM.formMessage.textContent = error.message;
+      }
+    });
+    DOM.exportDatasetBtn.addEventListener("click", () => {
+      DOM.datasetText.value = formatDatasetText();
+      DOM.formMessage.className = "form-message";
+      DOM.formMessage.textContent = "已将当前数据填入文本框。";
+    });
+    DOM.addTeamBtn.addEventListener("click", addTeam);
+    DOM.randomExampleBtn.addEventListener("click", () => {
+      applyDataset(generateRandomDataset(), "已随机生成一个合法示例并运行。");
+    });
+    DOM.restoreTeams4Btn.addEventListener("click", () => {
+      applyDataset(
+        { order: [...DEFAULT_TEAM_ORDER], teams: DEFAULT_TEAM_DATA, games: DEFAULT_GAMES },
+        "已恢复内置 teams4 数据。"
+      );
+    });
+    DOM.tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const algorithm = tab.dataset.algorithm;
+        DOM.tabs.forEach((item) => {
+          const active = item === tab;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-selected", String(active));
+        });
+        replaceAppState({ algorithm });
+        rebuildDemo();
+      });
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") goToStep(appState.stepIndex + 1);
+      if (event.key === "ArrowLeft") goToStep(appState.stepIndex - 1);
+      if (event.key === " ") {
+        event.preventDefault();
+        appState.timer ? stopAutoplay() : startAutoplay();
+      }
+    });
+
+    function runSelfTests() {
+      const scenarios = [
+        ["ff", "PHI", true, 6, 7, ["ATL", "NY"]],
+        ["ek", "PHI", true, 6, 7, ["ATL", "NY"]],
+        ["dinic", "PHI", true, 6, 7, ["ATL", "NY"]],
+        ["ff", "NY", false, 4, 4, []],
+        ["ek", "NY", false, 4, 4, []],
+        ["dinic", "NY", false, 4, 4, []],
+        ["ff", "MON", true, 0, 7, ["ATL"]],
+        ["ek", "MON", true, 0, 7, ["ATL"]],
+        ["dinic", "MON", true, 0, 7, ["ATL"]]
+      ];
+      const results = scenarios.map(([algorithm, target, eliminated, flow, total, certificate]) => {
+        const generators = {
+          ff: generateFordFulkersonSteps,
+          ek: generateEdmondsKarpSteps,
+          dinic: generateDinicSteps
+        };
+        const generated = generators[algorithm](target);
+        const result = generated.steps.at(-1).graphState.result;
+        const passed = result.eliminated === eliminated
+          && result.flow === flow
+          && result.totalGames === total
+          && JSON.stringify(result.certificate) === JSON.stringify(certificate);
+        console.assert(passed, `${algorithm}/${target} 自检失败`, result);
+        return { algorithm, target, passed, result, stepCount: generated.steps.length };
+      });
+      document.documentElement.dataset.selfTests = results.every((item) => item.passed)
+        ? "passed"
+        : "failed";
+      document.documentElement.dataset.selfTestCount = String(results.length);
+      const phiFinal = generateEdmondsKarpSteps("PHI").steps.at(-1).graphState;
+      const expectedSourceSide = ["s", "G_ATL_NY", "T_ATL", "T_NY"];
+      const expectedCut = [
+        ["s", "G_ATL_MON", 1],
+        ["T_ATL", "t", 0],
+        ["T_NY", "t", 5]
+      ];
+      const cutEdges = getCutEdges(phiFinal);
+      const cutCorrect = expectedSourceSide.every((id) => phiFinal.sourceSide.includes(id))
+        && !phiFinal.sourceSide.includes("G_ATL_MON")
+        && !phiFinal.sourceSide.includes("T_MON")
+        && !phiFinal.sourceSide.includes("t")
+        && expectedCut.every(([from, to, capacity]) =>
+          cutEdges.some((edge) => edge.from === from && edge.to === to && edge.capacity === capacity)
+        )
+        && cutEdges.reduce((sum, edge) => sum + edge.capacity, 0) === 6;
+      console.assert(cutCorrect, "PHI 最小割显示自检失败", phiFinal.sourceSide, cutEdges);
+      document.documentElement.dataset.cutTests = cutCorrect ? "passed" : "failed";
+      return results;
+    }
+
+    function runPlayerSelfTest() {
+      const restoreIndex = appState.stepIndex;
+      const firstSnapshot = JSON.stringify(appState.steps[0].graphState);
+      const lastIndex = appState.steps.length - 1;
+      goToStep(lastIndex);
+      const lastSnapshot = JSON.stringify(appState.steps[lastIndex].graphState);
+      goToStep(Math.max(0, lastIndex - 1));
+      goToStep(lastIndex);
+      const rewindStable = lastSnapshot === JSON.stringify(appState.steps[lastIndex].graphState);
+      goToStep(0);
+      const firstStable = firstSnapshot === JSON.stringify(appState.steps[0].graphState);
+      startAutoplay();
+      const autoplayStarted = Boolean(appState.timer);
+      stopAutoplay();
+      const autoplayStopped = !appState.timer;
+      replaceAppState({ stepIndex: restoreIndex });
+      renderCurrentStep();
+      const passed = rewindStable
+        && firstStable
+        && autoplayStarted
+        && autoplayStopped;
+      console.assert(passed, "播放器快照/回退/自动播放自检失败");
+      document.documentElement.dataset.playerTests = passed ? "passed" : "failed";
+      return passed;
+    }
+
+    function runParameterSelfTest() {
+      const dataset = generateRandomDataset();
+      const nonNegative = Object.values(dataset.teams).every((team) =>
+        Number.isInteger(team.wins) && team.wins >= 0
+        && Number.isInteger(team.remaining) && team.remaining >= 0
+      ) && Object.values(dataset.games).every((games) => Number.isInteger(games) && games >= 0);
+      const remainingMatches = TEAM_ORDER.every((id) => {
+        const scheduled = TEAM_ORDER
+          .filter((other) => other !== id)
+          .reduce((sum, other) => sum + dataset.games[pairKey(id, other)], 0);
+        return dataset.teams[id].remaining === scheduled;
+      });
+      const passed = nonNegative && remainingMatches;
+      console.assert(passed, "随机参数生成自检失败");
+      document.documentElement.dataset.parameterTests = passed ? "passed" : "failed";
+      return passed;
+    }
+
+    window.__baseballDemo = {
+      buildNetwork,
+      generateFordFulkersonSteps,
+      generateEdmondsKarpSteps,
+      generateDinicSteps,
+      parseDatasetText,
+      runSelfTests,
+      runPlayerSelfTest,
+      runParameterSelfTest,
+      getState: () => ({ ...appState, timer: Boolean(appState.timer) }),
+      goToStep
+    };
+
+    refreshTeamSelect();
+    renderParameterInputs();
+    DOM.datasetText.value = formatDatasetText();
+    DOM.teamSelect.value = initialTarget;
+    DOM.tabs.forEach((tab) => {
+      const active = tab.dataset.algorithm === initialAlgorithm;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", String(active));
+    });
+    runSelfTests();
+    rebuildDemo();
+    runPlayerSelfTest();
+    runParameterSelfTest();
+  </script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>最近点对算法可视化</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="left-panel">
+      <section class="card hero-card">
+        <div class="hero-badge">Algorithm Dashboard</div>
+        <h1>最近点对算法可视化</h1>
+        <p>使用蛮力法逐步枚举点对，联动展示代码执行、高亮行号与二维平面中的比较过程。</p>
+      </section>
+
+      <section class="card intro-card">
+        <div class="section-heading">
+          <h2>实验说明</h2>
+          <span>Demo Notes</span>
+        </div>
+        <p>本页面用于演示最近点对问题的求解流程。你可以设置点数量并切换算法，观察点集划分、点对比较、最优解更新以及代码执行高亮之间的同步变化。</p>
+      </section>
+
+      <section class="card control-card">
+        <div class="section-heading">
+          <h2>参数控制区</h2>
+          <span>Visualization Setup</span>
+        </div>
+
+        <div class="control-grid">
+          <label class="field">
+            <span>点数量</span>
+            <input id="pointCount" type="number" min="3" max="18" value="8">
+          </label>
+
+          <label class="field">
+            <span>算法选择</span>
+            <select id="algorithmSelect">
+              <option value="bruteforce">蛮力法</option>
+              <option value="divide">分治法</option>
+            </select>
+          </label>
+        </div>
+
+        <button id="generateBtn" class="primary-btn">生成随机点并演示</button>
+      </section>
+
+      <section class="card code-card">
+        <div class="section-heading">
+          <h2>代码执行区</h2>
+          <span>Python Trace</span>
+        </div>
+
+        <div id="codeContainer" class="code-container" aria-label="Python code"></div>
+
+        <div class="quad-toolbar" aria-label="Step and state controls">
+          <button id="prevBtn" class="secondary-btn">上一步</button>
+          <button id="nextBtn" class="secondary-btn">下一步</button>
+          <button id="prevStateBtn" class="secondary-btn">上一个状态</button>
+          <button id="nextStateBtn" class="secondary-btn">下一个状态</button>
+        </div>
+        <div class="quad-toolbar quad-toolbar--reserved" aria-label="Autoplay controls">
+          <button id="autoplayBtn" class="secondary-btn" type="button">自动播放</button>
+          <button id="stopAutoplayBtn" class="secondary-btn" type="button" disabled>停止播放</button>
+        </div>
+
+        <div class="slider-wrap">
+          <input id="stepSlider" type="range" min="0" max="0" value="0">
+          <div id="stepIndicator" class="step-indicator">步骤 0 / 0</div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="right-panel">
+      <section class="card status-card">
+        <div class="section-heading">
+          <h2>算法思想</h2>
+          <span>Algorithm Notes</span>
+        </div>
+
+        <div class="guide-box thought-grid">
+          <article class="thought-box">
+            <h3>蛮力法</h3>
+            <p>蛮力法的核心思想是“全部比较、逐步筛选”。算法通过双重循环枚举任意两个点形成的点对，逐一计算欧氏距离，并在比较过程中不断更新当前最短距离与最近点对。由于它不依赖复杂的数据结构，执行流程十分直观，非常适合用于教学演示、代码跟踪和最近点对问题的基础理解。其缺点是比较次数随点数增加而快速增长，时间复杂度为 O(n²)。</p>
+          </article>
+          <article class="thought-box">
+            <h3>分治法</h3>
+            <p>分治法的核心思想是“先分开求解，再局部合并”。算法先按横坐标对点集排序，再递归地将点集划分为左右两个子区间，分别求出左右部分的最近点对。随后利用当前最短距离构造分割线附近的带状区域，只检查其中可能产生跨区更优解的少量点对。这样可以显著减少无效比较，将整体时间复杂度优化到 O(n log n)，更适合处理规模较大的点集。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="card canvas-card">
+        <div class="canvas-header">
+          <div>
+            <h2>点集可视化区域</h2>
+          </div>
+        </div>
+
+        <div class="canvas-shell">
+          <canvas id="plotCanvas" width="760" height="560"></canvas>
+        </div>
+
+        <div class="status-mini-grid canvas-status-grid">
+          <article class="status-mini-box">
+            <span class="status-mini-label">当前状态</span>
+            <strong id="statusTitle" class="status-mini-title">等待开始</strong>
+          </article>
+          <article class="status-mini-box status-mini-legend">
+            <span class="status-mini-label">图例</span>
+            <div class="status-inline-legend" aria-label="Legend">
+              <div class="legend-item">
+                <span class="legend-mark mark-normal"></span>
+                <span>点</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-mark mark-current"></span>
+                <span>当前比较</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-mark mark-best"></span>
+                <span>当前最优</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-line"></span>
+                <span>最优连线</span>
+              </div>
+            </div>
+          </article>
+          <article class="status-mini-box">
+            <span class="status-mini-label">当前比较结果</span>
+            <div class="status-mini-pair">
+              <strong id="currentPair">-</strong>
+              <strong id="currentDistance">-</strong>
+            </div>
+          </article>
+          <article class="status-mini-box">
+            <span class="status-mini-label">当前最优结果</span>
+            <div class="status-mini-pair">
+              <strong id="bestPair">-</strong>
+              <strong id="bestDistance">-</strong>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

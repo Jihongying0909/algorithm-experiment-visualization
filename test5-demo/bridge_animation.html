@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>无向图桥检测（基准算法）动画</title>
+  <link rel="stylesheet" href="bridge_animation.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="card control-panel">
+      <div class="title-wrap">
+        <h1>无向图桥检测（基准算法）</h1>
+        <p>逐条边“临时删除”并统计连通块数量，判断是否为桥</p>
+      </div>
+      <div class="controls">
+        <button id="loadBtn">加载输入</button>
+        <button id="startBtn">开始</button>
+        <button id="pauseBtn">暂停</button>
+        <button id="prevBtn">上一步</button>
+        <button id="nextBtn">下一步</button>
+        <button id="resetBtn">重置</button>
+        <label>
+          速度
+          <input id="speedRange" type="range" min="200" max="2000" step="100" value="700" />
+        </label>
+      </div>
+    </header>
+
+    <section class="card input-panel">
+      <div class="panel-title">输入图（V E + E行边）</div>
+      <textarea id="graphInput" spellcheck="false"></textarea>
+    </section>
+
+    <main class="grid">
+      <section class="card pseudo">
+        <div class="panel-title">伪代码</div>
+        <ol id="pseudoList">
+          <li data-line="1">original_components = count_components(-1)</li>
+          <li data-line="2">for each edge (u, v, edge_id) in edges:</li>
+          <li data-line="3">&nbsp;&nbsp;new_components = count_components(edge_id)</li>
+          <li data-line="4">&nbsp;&nbsp;if new_components &gt; original_components:</li>
+          <li data-line="5">&nbsp;&nbsp;&nbsp;&nbsp;mark (u, v) as bridge</li>
+        </ol>
+      </section>
+
+      <section class="card viz">
+        <div class="panel-title">图动画</div>
+        <svg id="graphSvg" viewBox="0 0 900 520"></svg>
+      </section>
+
+      <section class="card state">
+        <div class="panel-title">状态监控</div>
+        <div class="state-item"><span>V, E</span><strong id="veText">-</strong></div>
+        <div class="state-item"><span>原始连通块</span><strong id="origCompText">-</strong></div>
+        <div class="state-item"><span>当前边</span><strong id="currentEdgeText">-</strong></div>
+        <div class="state-item"><span>删除后连通块</span><strong id="newCompText">-</strong></div>
+        <div class="state-item"><span>当前判断</span><strong id="decisionText">-</strong></div>
+        <div class="state-item"><span>进度</span><strong id="progressText">0/0</strong></div>
+      </section>
+    </main>
+
+    <section class="card log-panel">
+      <div class="panel-title">执行日志与结果</div>
+      <div id="resultLine">Bridges: （尚未开始）</div>
+      <div id="logBox"></div>
+    </section>
+  </div>
+
+  <script src="bridge_animation.js"></script>
+</body>
+</html>

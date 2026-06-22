@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>五种策略过程查看器</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="title">五种策略过程查看器</h1>
+
+    <div class="toolbar">
+      <div class="controls-row">
+        <select id="methodSelect">
+          <option value="1_feasibility">1. 可行性剪枝</option>
+          <option value="2_optimality">2. 最优化剪枝</option>
+          <option value="3_search_order_MRV_DH">3. 搜索顺序优化(MRV+DH)</option>
+          <option value="4_dedup_redundancy">4. 冗余消除剪枝</option>
+          <option value="5_tabucol">5. Tabucol(禁忌搜索)</option>
+          <option value="6_small_scale_demo">6. Small-scale Demo</option>
+        </select>
+        <button id="firstBtn">第一步</button>
+        <button id="prevBtn">上一步</button>
+        <button id="nextBtn" class="primary">下一步</button>
+        <button id="lastBtn">最后一步</button>
+        <button id="playBtn">自动播放</button>
+        <button id="stopBtn">停止播放</button>
+      </div>
+      <div id="info" class="info"></div>
+    </div>
+
+    <div class="viewer">
+      <img id="stepImg" alt="strategy step image" />
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+

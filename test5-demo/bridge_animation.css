@@ -1,0 +1,108 @@
+:root {
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #43385a;
+  background: #f7f5ff;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(251, 207, 232, 0.35), transparent 35%),
+    radial-gradient(circle at 88% 5%, rgba(191, 219, 254, 0.35), transparent 32%),
+    radial-gradient(circle at 65% 90%, rgba(221, 214, 254, 0.25), transparent 32%),
+    #f7f5ff;
+}
+
+.page { max-width: 1260px; margin: 0 auto; padding: 14px; }
+.card {
+  background: #ffffffd9;
+  border: 1px solid #e8e3f6;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(114, 102, 158, 0.12);
+}
+.panel-title { font-weight: 700; color: #4b3f68; margin-bottom: 10px; }
+
+.control-panel { padding: 14px; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.title-wrap h1 { margin: 0; font-size: 24px; }
+.title-wrap p { margin: 4px 0 0; color: #75678e; }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button, input, textarea { font: inherit; }
+button {
+  border: 1px solid #ddd0ff;
+  background: #efe9ff;
+  color: #5f4c95;
+  border-radius: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+button:hover { filter: brightness(0.98); }
+label { color: #5f4c95; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+
+.input-panel { margin-top: 10px; padding: 12px; }
+#graphInput {
+  width: 100%;
+  min-height: 128px;
+  border: 1px solid #e9e4f8;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fcfbff;
+  color: #43385a;
+}
+
+.grid {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1.1fr 2fr 1fr;
+}
+.pseudo, .viz, .state { padding: 12px; }
+
+#pseudoList { margin: 0; padding-left: 22px; line-height: 1.8; color: #5c5077; }
+#pseudoList li.active {
+  background: #e8f2ff;
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  color: #44638f;
+}
+
+#graphSvg { width: 100%; height: 520px; border: 1px solid #e9e4f8; border-radius: 12px; background: #fcfbff; }
+
+.state-item {
+  background: #fcfbff;
+  border: 1px solid #e9e4f8;
+  border-radius: 10px;
+  padding: 9px 10px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.state-item span { color: #7a6f98; }
+
+.log-panel { margin-top: 10px; padding: 12px; }
+#resultLine { margin-bottom: 8px; color: #4b3f68; font-weight: 600; }
+#logBox {
+  border: 1px solid #e9e4f8;
+  border-radius: 12px;
+  background: #fcfbff;
+  min-height: 150px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px 10px;
+  color: #5c5077;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.edge { stroke: #a89bbc; stroke-width: 2.4; transition: all .25s; }
+.edge.testing { stroke: #df5f5f; stroke-width: 3.8; stroke-dasharray: 7 6; }
+.edge.bridge { stroke: #1b9a66; stroke-width: 4.2; }
+.edge.dim { opacity: 0.22; }
+
+.node { fill: #fff; stroke: #7d6d99; stroke-width: 2; }
+.node-label { fill: #4b3f68; font-size: 13px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+  #graphSvg { height: 420px; }
+}
